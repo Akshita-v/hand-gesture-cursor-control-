@@ -1,0 +1,23 @@
+# Python cache / build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+
+# Local model/data artifacts (regenerate locally)
+*.pkl
+*.csv
+*.task
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Requested: do not publish these scripts
+volume.py
+mouse.py
