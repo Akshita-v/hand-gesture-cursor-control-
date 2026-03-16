@@ -14,7 +14,7 @@ TASK_FILE = "hand_landmarker.task"
 
 pyautogui.FAILSAFE = False  # Manual toggle handles safety
 SMOOTHING = 0.17            # Lower = smoother cursor movement
-CURSOR_DEADZONE = 2         # Ignore tiny movement jitters (in pixels)
+CURSOR_DEADZONE = 2        # Ignore tiny movement jitters (in pixels)
 GESTURE_WINDOW = 6          # Frames used for gesture stabilization
 SCROLL_COOLDOWN = 0.12      # Seconds between scroll events
 
@@ -101,11 +101,11 @@ def draw_horizontal_legend(frame, active_gesture):
 cap = cv2.VideoCapture(0)
 sw, sh = pyautogui.size()
 is_active = False
-last_click_time = 0
 last_scroll_time = 0
 smooth_x = None
 smooth_y = None
 gesture_history = deque(maxlen=GESTURE_WINDOW)
+prev_gesture = None
 
 GESTURE_LABELS = {
     "0": "Palm -> Activate",
@@ -157,23 +157,24 @@ while cap.isOpened():
         # D. WORKER LOGIC
         if is_active:
             # 1. CURSOR CONTROL (ID 2 - Index Finger)
-            # We move the mouse whenever active, but ID 2 is the primary signal
-            if smooth_x is None or smooth_y is None:
-                smooth_x, smooth_y = target_x, target_y
+            # Move only when the move gesture is active to prevent drift during other gestures.
+            if gesture == "2":
+                if smooth_x is None or smooth_y is None:
+                    smooth_x, smooth_y = target_x, target_y
+                else:
+                    smooth_x += (target_x - smooth_x) * SMOOTHING
+                    smooth_y += (target_y - smooth_y) * SMOOTHING
+
+                curr_x, curr_y = pyautogui.position()
+                if abs(smooth_x - curr_x) > CURSOR_DEADZONE or abs(smooth_y - curr_y) > CURSOR_DEADZONE:
+                    pyautogui.moveTo(smooth_x, smooth_y, _pause=False)
             else:
-                smooth_x += (target_x - smooth_x) * SMOOTHING
-                smooth_y += (target_y - smooth_y) * SMOOTHING
+                # Reacquire smoothly next time move gesture appears.
+                smooth_x, smooth_y = None, None
 
-            curr_x, curr_y = pyautogui.position()
-            if abs(smooth_x - curr_x) > CURSOR_DEADZONE or abs(smooth_y - curr_y) > CURSOR_DEADZONE:
-                pyautogui.moveTo(smooth_x, smooth_y, _pause=False)
-
-            # 2. CLICK / SELECT (ID 1 - Pinch)
-            if gesture == "1":
-                now = time.time()
-                if now - last_click_time > 0.5: # Prevent multiple clicks
-                    pyautogui.click()
-                    last_click_time = now
+            # 2. CLICK / SELECT (ID 1 - Pinch, edge-triggered)
+            if gesture == "1" and prev_gesture != "1":
+                pyautogui.click()
 
             # 3. SCROLLING (ID 4 - Up | ID 5 - Down)
             now = time.time()
@@ -187,14 +188,19 @@ while cap.isOpened():
 
             cv2.putText(frame, f"STATUS: ACTIVE | GESTURE: {gesture}", (10, 40), 1, 1.3, (0, 255, 0), 2)
         else:
+            smooth_x, smooth_y = None, None
             cv2.putText(frame, "STATUS: PAUSED (Show Palm)", (10, 40), 1, 1.3, (0, 0, 255), 2)
 
         # Show gesture names in horizontal format with active gesture highlight.
         draw_horizontal_legend(frame, gesture)
         cv2.putText(frame, f"CURRENT: {gesture}", (10, 116), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 255, 255), 2)
+        prev_gesture = gesture
             
         # Draw hand landmarks as dots + lines
         draw_hand_landmarks(frame, lms)
+
+    else:
+        smooth_x, smooth_y = None, None
 
     cv2.imshow("Hand-Gesture Mouse Controller", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'): break
