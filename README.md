@@ -7,6 +7,8 @@ This project combines:
 - **Custom gesture classifier** (`RandomForest`) trained on normalized landmark data
 - **PyAutoGUI** for system actions (move, click, scroll, key press)
 
+In short: your webcam captures hand landmarks, the model predicts the gesture label, and the app maps that label to a mouse or keyboard action.
+
 ---
 
 ## Features
@@ -19,30 +21,43 @@ This project combines:
 
 ---
 
+## First-Time Workflow (Recommended)
+
+If you are running this project for the first time, follow this order:
+
+1. Set up the environment and install dependencies.
+2. (Optional) Collect your own gesture data using `data_collector.py`.
+3. Train the model with `train_model.py`.
+4. Run the app with `main.py`.
+
+If model files already exist and work well, you can directly run `main.py`.
+
+---
+
 ## Project Structure
 
 - `main.py`  
-   Primary application: stable gesture-based mouse control.
+   Primary application for stable gesture-based mouse control.
 
 - `main_control.py`  
-   Validation/diagnostic controller for checking gesture predictions and logic.
+   Diagnostic/validation controller for testing gesture predictions.
 
 - `data_collector.py`  
-   Captures normalized hand landmarks and appends labeled samples to `hand_data.csv`.
+   Collects normalized landmark samples and appends them to `hand_data.csv`.
 
 - `train_model.py`  
-   Trains classifier + label encoder and saves:
+   Trains the gesture classifier and saves:
    - `gesture_model.pkl`
    - `label_encoder.pkl`
 
 - `mouse.py`  
-   Alternate gesture control script with swipe left/right key actions.
+   Alternate controller with swipe-based left/right key actions.
 
 - `volume.py`  
-   Simple hand-gesture volume control demo.
+   Standalone hand-gesture volume control demo.
 
 - `hand_landmarker.task`  
-   MediaPipe model file used for hand landmark detection.
+   MediaPipe model file used to detect hand landmarks.
 
 ---
 
@@ -84,6 +99,8 @@ pip install opencv-python mediapipe numpy pandas scikit-learn joblib pyautogui
 - `hand_landmarker.task`
 - `gesture_model.pkl` and `label_encoder.pkl` (generate with training pipeline below if missing)
 
+Tip: keep all scripts and model files in the same project root directory unless you update file paths in code.
+
 ---
 
 ## Quick Start
@@ -95,6 +112,8 @@ python main.py
 ```
 
 Press `q` in the OpenCV window to quit.
+
+Safety note: because PyAutoGUI controls your system cursor, test gestures slowly first and use the pause gesture when needed.
 
 ---
 
@@ -121,6 +140,8 @@ This script uses a different mapping in its action logic:
 - `5` Left arrow key
 - `6` Right arrow key
 
+Use `main.py` for everyday use, and `main_control.py` mainly for checking whether labels/actions are being recognized as expected.
+
 ---
 
 ## Train Your Own Gesture Model
@@ -138,7 +159,8 @@ If model files are missing, outdated, or you want better accuracy for your hand/
 
     - Press `s` to save a frame sample
     - Press `q` to stop
-    - Repeat for each gesture label
+   - Capture samples in different lighting and hand angles for better robustness
+   - Repeat for each gesture label
 
 2. **Train classifier**
 
@@ -183,19 +205,23 @@ Summary:
 ## Troubleshooting
 
 - **Camera not opening**
-   - Close apps using webcam and rerun script.
+  - Close apps using webcam and rerun script.
 
 - **`gesture_model.pkl` / `label_encoder.pkl` missing**
-   - Run `python train_model.py` after collecting data.
+  - Run `python train_model.py` after collecting data.
 
 - **`hand_landmarker.task` missing**
-   - Keep `hand_landmarker.task` in root, or run `data_collector.py`/`mouse.py` once (they auto-download if absent).
+  - Keep `hand_landmarker.task` in root, or run `data_collector.py`/`mouse.py` once (they auto-download if absent).
 
 - **Mouse movement too jittery**
-   - Tune smoothing values in `main.py` (`SMOOTHING`, `CURSOR_DEADZONE`, `GESTURE_WINDOW`).
+  - Tune smoothing values in `main.py` (`SMOOTHING`, `CURSOR_DEADZONE`, `GESTURE_WINDOW`).
 
 - **Accidental OS actions while testing**
-   - Use pause gesture quickly (`3` in `main.py`) and keep one hand visible.
+  - Use pause gesture quickly (`3` in `main.py`) and keep one hand visible.
+
+- **Low prediction accuracy**
+  - Re-collect balanced data for each label and retrain.
+  - Avoid mixing similar-looking gestures without enough samples.
 
 ---
 
