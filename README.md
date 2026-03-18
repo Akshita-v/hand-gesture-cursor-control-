@@ -1,4 +1,4 @@
-# Hand Gesture Cursor Control
+# Gesture Mouse Controller (MediaPipe Tasks API)
 
 A real-time hand-gesture control project built with MediaPipe Tasks + Random Forest.
 
