@@ -1,73 +1,58 @@
-# Gesture Mouse Controller (MediaPipe Tasks API)
+# Hand Gesture Cursor Control
 
-Control your mouse and basic desktop actions using real-time hand gestures detected from webcam input.
+A real-time hand-gesture control project built with MediaPipe Tasks + Random Forest.
 
-This project combines:
-- **MediaPipe Hand Landmarker (Tasks API)** for 21 hand keypoints
-- **Custom gesture classifier** (`RandomForest`) trained on normalized landmark data
-- **PyAutoGUI** for system actions (move, click, scroll, key press)
-
-In short: your webcam captures hand landmarks, the model predicts the gesture label, and the app maps that label to a mouse or keyboard action.
+It supports webcam-based:
+- Cursor movement
+- Click
+- Scroll up/down
+- Activation/pause control states
 
 ---
 
 ## Features
 
-- Real-time hand tracking with on-screen landmark visualization
-- Gesture stabilization (majority vote over recent frames) for smoother behavior
-- Gesture-based cursor movement, click, and scrolling
-- Activation/pause gestures so control is not always live
-- Data collection + model training scripts included
+- Real-time hand landmark detection using MediaPipe Tasks (`hand_landmarker.task`)
+- Gesture classification with `RandomForestClassifier`
+- Gesture stabilization using frame-window majority voting
+- Cursor smoothing and deadzone filtering to reduce jitter
+- Safe activation model:
+  - `0` (open palm) enables control
+  - `3` (fist) pauses control
 
----
+### Gesture Map (`main.py`)
 
-## First-Time Workflow (Recommended)
-
-If you are running this project for the first time, follow this order:
-
-1. Set up the environment and install dependencies.
-2. (Optional) Collect your own gesture data using `data_collector.py`.
-3. Train the model with `train_model.py`.
-4. Run the app with `main.py`.
-
-If model files already exist and work well, you can directly run `main.py`.
+- `0` = Activate system (open palm)
+- `1` = Click (pinch)
+- `2` = Move cursor (index)
+- `3` = Pause system (fist)
+- `4` = Scroll up (two fingers)
+- `5` = Scroll down (three fingers)
 
 ---
 
 ## Project Structure
 
-- `main.py`  
-   Primary application for stable gesture-based mouse control.
-
-- `main_control.py`  
-   Diagnostic/validation controller for testing gesture predictions.
-
-- `data_collector.py`  
-   Collects normalized landmark samples and appends them to `hand_data.csv`.
-
-- `train_model.py`  
-   Trains the gesture classifier and saves:
-   - `gesture_model.pkl`
-   - `label_encoder.pkl`
-
-- `mouse.py`  
-   Alternate controller with swipe-based left/right key actions.
-
-- `volume.py`  
-   Standalone hand-gesture volume control demo.
-
-- `hand_landmarker.task`  
-   MediaPipe model file used to detect hand landmarks.
+- `data_collector.py` → Collect labeled hand-landmark samples into CSV
+- `train_model.py` → Train model, print metrics, save model + encoder
+- `main.py` → Run main real-time gesture controller
+- `main_control.py` → Diagnostic/validation controller (alternate mapping)
+- `mouse.py` → Alternate controller script with swipe-style key actions
+- `volume.py` → Simple volume-control demo using hand landmarks
+- `hand_data.csv` → Dataset (label + normalized landmarks)
+- `gesture_model.pkl` → Trained gesture classifier
+- `label_encoder.pkl` → Label encoder
+- `hand_landmarker.task` → MediaPipe hand model
 
 ---
 
 ## Requirements
 
-- Python 3.9+ (recommended: 3.10 or newer)
+- Python 3.9+ (3.10+ recommended)
 - Webcam
 - Windows/macOS/Linux (current setup in this workspace is Windows)
 
-Install Python packages:
+Install dependencies:
 
 ```bash
 pip install opencv-python mediapipe numpy pandas scikit-learn joblib pyautogui
@@ -77,112 +62,65 @@ pip install opencv-python mediapipe numpy pandas scikit-learn joblib pyautogui
 
 ## Setup (Windows PowerShell)
 
-1. Create virtual environment
-
 ```powershell
 python -m venv .venv
-```
-
-2. Activate environment
-
-```powershell
 .\.venv\Scripts\Activate.ps1
-```
-
-3. Install dependencies
-
-```powershell
 pip install opencv-python mediapipe numpy pandas scikit-learn joblib pyautogui
 ```
 
-4. Ensure files exist in project root:
-- `hand_landmarker.task`
-- `gesture_model.pkl` and `label_encoder.pkl` (generate with training pipeline below if missing)
-
-Tip: keep all scripts and model files in the same project root directory unless you update file paths in code.
+If model files are missing, generate them using the training flow below.
 
 ---
 
-## Quick Start
+## How to Collect Data
 
-Run the main controller:
+1. Open `data_collector.py`
+2. Set `LABEL_ID` to the gesture class you want to record
+3. Run:
 
 ```bash
-python main.py
+python data_collector.py
 ```
 
-Press `q` in the OpenCV window to quit.
+In the camera window:
+- Press `S` to save one sample frame
+- Press `Q` to quit
 
-Safety note: because PyAutoGUI controls your system cursor, test gestures slowly first and use the pause gesture when needed.
-
----
-
-## Gesture Mapping
-
-### `main.py` (primary app)
-
-- `0` → Open Palm → **Activate control**
-- `1` → Pinch → **Click**
-- `2` → Index finger → **Move cursor**
-- `3` → Fist → **Pause control**
-- `4` → Two fingers → **Scroll up**
-- `5` → Three fingers → **Scroll down**
-
-### `main_control.py` (diagnostic variant)
-
-This script uses a different mapping in its action logic:
-
-- `0` Enable control
-- `1` Disable control
-- `2` Move cursor
-- `3` Click
-- `4` Scroll
-- `5` Left arrow key
-- `6` Right arrow key
-
-Use `main.py` for everyday use, and `main_control.py` mainly for checking whether labels/actions are being recognized as expected.
+Repeat for each label with balanced sample counts.
 
 ---
 
-## Train Your Own Gesture Model
+## Data Format
 
-If model files are missing, outdated, or you want better accuracy for your hand/camera:
-
-1. **Collect data per gesture label**
-    - Open `data_collector.py`
-    - Set `LABEL_ID` for the gesture you are recording
-    - Run:
-
-    ```bash
-    python data_collector.py
-    ```
-
-    - Press `s` to save a frame sample
-    - Press `q` to stop
-   - Capture samples in different lighting and hand angles for better robustness
-   - Repeat for each gesture label
-
-2. **Train classifier**
-
-    ```bash
-    python train_model.py
-    ```
-
-    This prints a test report and saves:
-    - `gesture_model.pkl`
-    - `label_encoder.pkl`
-
-3. **Run controller**
-
-    ```bash
-    python main.py
-    ```
+Each row in `hand_data.csv`:
+- Column `0`: gesture label
+- Remaining columns: normalized landmark coordinates (wrist-relative + scaled)
 
 ---
 
-## Last Recorded Training Report
+## How to Train
 
-From current `train_model.py` output notes:
+Run:
+
+```bash
+python train_model.py
+```
+
+Training flow:
+- Load CSV dataset
+- Encode labels (`LabelEncoder`)
+- Train/test split (`test_size=0.2`)
+- Train Random Forest
+- Print accuracy + classification report
+- Retrain on full dataset and save:
+  - `gesture_model.pkl`
+  - `label_encoder.pkl`
+
+---
+
+## Last Recorded Performance Report
+
+From the latest project output:
 - Overall Accuracy: **94.67%**
 
 | Gesture ID | Precision | Recall | F1-score | Support |
@@ -196,36 +134,123 @@ From current `train_model.py` output notes:
 | 6 | 0.83 | 1.00 | 0.91 | 5 |
 
 Summary:
-- Accuracy: `0.95` on 75 test samples
+- Accuracy: `0.95` (75 test samples)
 - Macro Avg: Precision `0.96` | Recall `0.95` | F1 `0.95`
 - Weighted Avg: Precision `0.95` | Recall `0.95` | F1 `0.95`
 
 ---
 
+## Run the Gesture Controller
+
+```bash
+python main.py
+```
+
+Startup behavior:
+- Show Palm (`0`) to start control
+- Show Fist (`3`) to pause control
+
+Controls:
+- Press `q` in the OpenCV window to exit
+
+---
+
+## Command Reference
+
+```bash
+# Collect samples
+python data_collector.py
+
+# Train classifier and save model files
+python train_model.py
+
+# Run primary controller
+python main.py
+
+# Run diagnostic/alternate scripts
+python main_control.py
+python mouse.py
+python volume.py
+```
+
+---
+
+## Current Runtime Tuning (`main.py`)
+
+- `SMOOTHING = 0.17` → controls cursor interpolation smoothness
+- `CURSOR_DEADZONE = 2` → ignores tiny movement jitter
+- `GESTURE_WINDOW = 6` → voting window for stable gesture output
+- `SCROLL_COOLDOWN = 0.12` → minimum time gap between scroll events
+
+These values are tuned for smoother control and fewer accidental actions.
+
+---
+
 ## Troubleshooting
 
-- **Camera not opening**
-  - Close apps using webcam and rerun script.
+1. **Camera not opening**
+   - Close other camera-using apps and rerun.
 
-- **`gesture_model.pkl` / `label_encoder.pkl` missing**
-  - Run `python train_model.py` after collecting data.
+2. **Model files missing (`gesture_model.pkl`, `label_encoder.pkl`)**
+   - Run `python train_model.py` after collecting samples.
 
-- **`hand_landmarker.task` missing**
-  - Keep `hand_landmarker.task` in root, or run `data_collector.py`/`mouse.py` once (they auto-download if absent).
+3. **Landmarker file missing (`hand_landmarker.task`)**
+   - Keep it in project root, or run `data_collector.py` once (it auto-downloads).
 
-- **Mouse movement too jittery**
-  - Tune smoothing values in `main.py` (`SMOOTHING`, `CURSOR_DEADZONE`, `GESTURE_WINDOW`).
+4. **Cursor feels jittery**
+   - Increase `GESTURE_WINDOW`
+   - Increase `CURSOR_DEADZONE`
+   - Fine-tune `SMOOTHING`
 
-- **Accidental OS actions while testing**
-  - Use pause gesture quickly (`3` in `main.py`) and keep one hand visible.
+5. **Prediction quality is low for some classes**
+   - Add more balanced samples for weaker classes
+   - Capture under different lighting/angles
+   - Retrain after adding data
 
-- **Low prediction accuracy**
-  - Re-collect balanced data for each label and retrain.
-  - Avoid mixing similar-looking gestures without enough samples.
+---
+
+## Safety Notes
+
+- `main.py` sets `pyautogui.FAILSAFE = False`, so keep one hand ready to pause quickly.
+- Use gesture `3` (fist) to stop control immediately.
+- Always test new models slowly before normal use.
+
+---
+
+## Quick Start (One Flow)
+
+```bash
+# 1) collect data (optional)
+python data_collector.py
+
+# 2) train model
+python train_model.py
+
+# 3) run controller
+python main.py
+```
 
 ---
 
 ## Notes
 
-- `main.py` is the recommended entry point for day-to-day usage.
-- `main_control.py`, `mouse.py`, and `volume.py` are useful for testing or alternative behavior.
+This README reflects current behavior in this workspace (`main.py`, `train_model.py`, and related scripts).
+If you later add app-launch gestures (Chrome), this structure can be extended with those mappings and safety gates.
+
+---
+
+## Known Limitations
+
+- Performance depends heavily on lighting, background clutter, and webcam quality.
+- Single-hand setup (`num_hands=1`) means multi-hand gestures are not supported.
+- Gesture labels are numeric, so data consistency during collection is very important.
+- This is tuned for desktop control; accidental actions are still possible if gestures are ambiguous.
+
+---
+
+## Roadmap (Optional Improvements)
+
+- Add confidence-based gating for high-risk actions.
+- Add an in-app calibration step before control starts.
+- Export training metrics automatically to a file after each training run.
+- Add a lightweight GUI for changing runtime tuning values without editing code.
